@@ -1,0 +1,120 @@
+import random
+
+from typing import List, Dict
+
+class Match:
+    def __init__(self, single_prefs: Dict[str, List[str]], couple_prefs: Dict[str, List[List[str]]]):
+        self.matches = {}
+        self.applicant_stack = []
+        self.program_stack = []
+        self.single_names = list(single_prefs.keys())
+        self.couple_names = list(couple_prefs.keys())
+        self.couples = couple_prefs
+        self.member_of = self.make_members(couple_prefs)
+        self.current_choices = {}
+        self.single_prefs = single_prefs
+        self.couple_prefs = couple_prefs
+        self.program_prefs = self.make_program_prefs(single_prefs, couple_prefs)
+        for program in self.program_prefs:
+            self.matches[program] = []
+
+    def make_members(self, couples: Dict[str, List[List[str]]]) -> Dict[str, str]:
+        member_of = {}
+        for couple_name, members in couples.items():
+            for s in members:
+                member_of[s] = couple_name
+        return member_of
+    
+    def make_program_prefs(self, single_prefs: Dict[str, List[str]], couple_prefs: Dict[str, List[List[str]]]) -> List[str]:
+        return list(single_prefs.keys()) + list(couple_prefs.keys())
+
+    def get_preferences(self, s: str) -> List[str]:
+        if s in self.single_names:
+            return self.single_prefs[s]
+        elif s in self.couple_names:
+            return self.couple_prefs[s]
+        else:
+            couple = self.member_of[s]
+            ind = self.couples[couple].index(s)
+            return [pref[ind] for pref in self.couple_prefs[couple]]
+
+    def get_matched_program(self, s: str) -> str:
+        for program, students in self.matches.items():
+            if s in students:
+                return program
+        return None
+
+    def is_preferred(self, s: str, program: str) -> bool:
+        if len(self.matches[program]) == 0:
+            return True
+        else:
+            current_match = self.matches[program][-1]
+            prefs = self.program_prefs[program]
+            if prefs.index(s) < prefs.index(current_match):
+                return True
+            else:
+                return False
+
+    def accept(self, s: str, program: str) -> None:
+        if self.matches[program]:
+            current_match = self.matches[program][-1]
+            self.matches[program].remove(current_match)
+            self.move_on(current_match)
+        self.matches[program].append(s)
+        self.matches[program].sort(key=lambda x: self.program_prefs[program].index(x))
+
+    def withdraw(self, s: str) -> None:
+        program = self.get_matched_program(s)
+        if program:
+            self.matches[program].remove(s)
+            if program != 'no match':
+                self.program_stack.append(program)
+        if s in self.member_of:
+            partner = self.partners[s]
+            program = self.get_matched_program(partner)
+            if program:
+                self.matches[program].remove(partner)
+                if program != 'no match':
+                    self.program_stack.append(program)
+
+    def reset(self, s: str) -> None:
+        self.withdraw(s)
+        self.applicant_stack.append(s)
+        self.current_choices[s] = 0
+
+    def deal_with_couple(self, s: str) -> None:
+        pass
+
+    def mutually_prefer(self, p: str, student: str, current_program: str) -> bool:
+        prefs = self.get_preferences(student)
+        if current_program == 'no match':
+            student_prefers = True
+    
+
+       
+
+
+single_prefs = {1: ['B','A','C','D'],
+                2: ['D','A','B','C'],
+                3: ['A','C','B','D'],
+                4: ['B','C','A','D'],
+                }
+couple_prefs = {'C12':[['A','B'], ['B','A'],
+                      ['A','C'], ['B','C'], ['C','A']]}
+
+program_prefs = {'A':['C1',1,3,2,4,'C2'],
+                 'B':[3,4,1,2,'C1','C2'],
+                 'C':[4,'C2',1,3,2,'C1'],
+                 'D':[3,2,1,4,'C1','C2']}
+
+single_names = single_prefs.keys()
+couple_names = couple_prefs.keys()
+program_names = program_prefs.keys()
+couples = {'C12':['C1','C2']}
+#member_of = make_members(couples)
+partners = {'C1' : 'C2',
+            'C2' : 'C1'}
+
+matches = {p: [] for p in (list(program_names) + ['no match'])}
+Match()
+print(f'matches={matches}')

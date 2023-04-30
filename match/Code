@@ -1,0 +1,223 @@
+import random
+
+single_prefs = {'1': ['B','A','C','D'],
+                '2': ['D','A','B','C'],
+                '3': ['A','C','B','D'],
+                '4': ['B','C','A','D'],
+                }
+couple_prefs = {'C12':[['A','B'], ['B','A'],
+                      ['A','C'], ['B','C'], ['C','A']]}
+
+program_prefs = {'A':['C1','1','3','2','4','C2'],
+                 'B':['3','4','1','2','C1','C2'],
+                 'C':['4','C2','1','3','2','C1'],
+                 'D':['3','2','1','4','C1','C2']}
+
+single_names = single_prefs.keys()
+couple_names = couple_prefs.keys()
+program_names = program_prefs.keys()
+couples = {'C12':['C1','C2']}
+partners = {'C1' : 'C2',
+            'C2' : 'C1'}
+
+current_choices = {}
+applicant_stack = []
+program_stack = []
+
+def utility(prefs, ch):
+    try:
+        id=prefs.index(ch)
+        ut=100000-id*100
+        return ut
+    except:
+        return 0
+
+
+def make_members(couples):
+    member_of = {}
+    for couple_name, members in couples.items():
+        for s in members:
+            member_of[s] = couple_name
+    return member_of
+
+def match():
+    for s in single_names:
+        applicant_stack.append(s)
+        make_stable()
+    for c in couple_names:
+        applicant_stack.append(c)
+        make_stable()
+    return True
+
+
+def make_stable():
+    while applicant_stack:
+        print(f'applicant_stack={applicant_stack}, matches={matches}')
+        s = applicant_stack.pop(0)
+        if s in single_names:
+            add_single(s)
+        else:
+            add_couple(s)
+    if program_stack:
+        print(f'program_stack={program_stack}, matches={matches}')
+        program = program_stack.pop(0)
+        for _ in range(len(matches['no match'])):
+            s = matches['no match'].pop()
+            reset(s)
+        deal_with(program)
+        random.shuffle(applicant_stack)
+        make_stable()
+
+
+def deal_with(p):
+    for program, students in matches.items():
+        if program == p:
+            next
+        for s in students:
+            if s in couple_names:
+                deal_with_couple(s)
+            elif mutually_prefer(p, s, program):
+                reset(s)
+
+
+def reset(s):
+    print(f'resetting {s}')
+    withdraw(s)
+    applicant_stack.append(s)
+    current_choices[s] = 0
+
+
+def deal_with_couple(s):
+    pass
+
+
+def mutually_prefer(p, student, current_program):
+    prefs = get_preferences(student)
+    if current_program == 'no match':
+        student_prefers = True
+    else:
+        student_prefers =  prefs.index(p) < prefs.index(current_program)
+    return is_preferred(student, p) and student_prefers
+
+
+def get_preferences(s):
+    if s in single_names:
+        return single_prefs[s]
+    elif s in couple_names:
+        return couple_prefs[s]
+    else:
+        couple = member_of[s]
+        ind = couples[couple].index(s)
+        return [pref[ind] for pref in couple_prefs[couple]]
+
+
+def get_matched_program(s):
+    for program, students in matches.items():
+        if s in students:
+            return program
+    return None
+
+
+def add_single(s):
+    if not has_options(s):
+        matches['no match'].append(s)
+        return False
+    program = single_prefs[s][choice_index(s)]
+    if is_preferred(s, program):
+        print(f'{program} prefers {s}')
+        accept(s, program)
+    else:
+        print(f'{s} is moving on')
+        move_on(s)
+
+
+def add_couple(c):
+    if not has_options(c):
+        matches['no match'].append(c)
+        return False
+    return couple_propose(c)
+
+
+# need to handle case when both members apply to same program
+def couple_propose(c):
+    pref1, pref2 = couple_prefs[c][choice_index(c)]
+    c1, c2 = couples[c]
+    if is_preferred(c1, pref1) and is_preferred(c2, pref2):
+        print(f'{pref1} and {pref2} prefer {c1} and {c2}')
+        accept(c1, pref1)
+        accept(c2, pref2)
+    else:
+        print(f'{c1}, {c2} are moving on')
+        move_on(c)
+
+
+def move_on(s):
+    if s in single_names:
+        current_choices[s] += 1
+        applicant_stack.append(s)
+    elif s in couple_names:
+        current_choices[s] += 1
+        applicant_stack.append(s)
+    else:
+        couple = member_of[s]
+        partner = partners[s]
+        withdraw(partner)
+        move_on(couple)
+
+
+def withdraw(s):
+    program = get_matched_program(s)
+    if program:
+        matches[program].remove(s)
+        if program != 'no match':
+            program_stack.append(program)
+    if s in member_of:
+        partner = partners[s]
+        program = get_matched_program(partner)
+        if program:
+            matches[program].remove(partner)
+            if program != 'no match':
+                program_stack.append(program)
+
+
+def is_preferred(s, program):
+    if len(matches[program]) == 0:
+        return True
+    else:
+        current_match = matches[program][-1]
+        prefs = program_prefs[program]
+        if prefs.index(s) < prefs.index(current_match):
+            return True
+        else:
+            return False
+
+
+def accept(s, program):
+    if matches[program]:
+        current_match = matches[program][-1]
+        matches[program].remove(current_match)
+        move_on(current_match)
+    matches[program].append(s)
+
+def has_options(s):
+    if s in single_names:
+        return choice_index(s) < len(single_prefs[s])
+    else:
+        return choice_index(s) < len(couple_prefs[s])
+
+
+def choice_index(s):
+    if s not in current_choices:
+        current_choices[s] = 0
+    return current_choices[s]
+
+member_of = make_members(couples)
+matches = {p: [] for p in (list(program_names) + ['no match'])}
+
+match()
+for key,value in matches.items():
+    try:
+        util=utility(single_prefs[value[0]],key)
+    except:
+        util=utility(couple_prefs[value[0]],key)
+    print(f'program={key}, student={value}, student utility={util}')
